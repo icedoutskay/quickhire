@@ -1,5 +1,10 @@
 require('dotenv').config();
 
+const headers = {
+  Authorization: `token ${process.env.GITHUB_TOKEN}`,
+  Accept: 'application/vnd.github.v3+json',
+};
+
 const {
   hasGoodReadme,
   hasGoodStructure,

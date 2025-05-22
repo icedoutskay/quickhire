@@ -1,9 +1,13 @@
 const axios = require("axios");
 
+const headers = {
+  Authorization: `token ${process.env.GITHUB_TOKEN}`,
+  Accept: 'application/vnd.github.v3+json',
+};
 
 async function hasGoodReadme (username, repoName){
     try{
-        const res = await axios.get('https://api.github.com/repos/${username}/${repoName}/readme');
+        const res = await axios.get('https://api.github.com/repos/${username}/${repoName}/readme',  { headers });
         const content = Buffer.from(res.data.content, "base64").toString("utf-8");
         const readmeLength = content.length; 
 
@@ -18,7 +22,7 @@ async function hasGoodReadme (username, repoName){
 
 async function hasGoodFolderStructure(username, repoName) {
   try {
-    const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/contents`);
+    const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/contents`,  { headers });
     const names = res.data.map((item) => item.name.toLowerCase());
 
     const hasCommonFolders = ["src", "public", "tests", "docs"].some((f) => names.includes(f));
@@ -45,7 +49,7 @@ function isActivelyMaintained(repo) {
 
 async function hasGoodStructure(username, repoName) {
   try {
-    const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/contents`);
+    const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/contents`,  { headers });
     const names = res.data.map((item) => item.name.toLowerCase());
 
     return (
@@ -79,45 +83,42 @@ async function hasMeaningfulCommits(username, repoName) {
 }
 
 async function getScore(username, repos) {
-  let totalScore = 0;
   const perRepoScores = [];
-  const maxPerRepo = 100 / 3;
 
-  const topRepos = repos
-    .filter((r) => !r.fork)
-    .sort((a, b) => b.stargazers_count - a.stargazers_count)
-    .slice(0, 3);
+  const nonForkedRepos = repos.filter((r) => !r.fork);
 
-  for (const repo of topRepos) {
-    let score = 0;
+  const repoWithScores = await Promise.all(
+    nonForkedRepos.map(async (repo) => {
+      let score = 0;
 
-    const [
-      readme,
-      structure,
-      commits,
-    ] = await Promise.all([
-      hasGoodReadme(username, repo.name),
-      hasGoodStructure(username, repo.name),
-      hasMeaningfulCommits(username, repo.name),
-    ]);
+      const [readme, structure, commits] = await Promise.all([
+        hasGoodReadme(username, repo.name),
+        hasGoodStructure(username, repo.name),
+        hasMeaningfulCommits(username, repo.name),
+      ]);
 
-    const live = hasLiveDemo(repo);
-    const maintained = isActivelyMaintained(repo);
-    const realWorld = isRealWorldProject(repo);
+      const live = hasLiveDemo(repo);
+      const maintained = isActivelyMaintained(repo);
+      const realWorld = isRealWorldProject(repo);
 
-    if (readme) score += 50;
-    if (live) score += 10;
-    if (maintained) score += 15;
-    if (realWorld) score += 20;
-    if (structure) score += 10;
-    if (commits) score += 15;
-    if (score > 100) score = 100;
-   perRepoScores.push(score);
-}
+      if (readme) score += 30;
+      if (live) score += 10;
+      if (maintained) score += 15;
+      if (realWorld) score += 20;
+      if (structure) score += 10;
+      if (commits) score += 15;
+      if (score > 100) score = 100;
 
-const averageScore = perRepoScores.length
-  ? perRepoScores.reduce((a, b) => a + b, 0) / perRepoScores.length
-  : 0;
+      return { ...repo, score };
+    })
+  );
+
+  const topRepos = repoWithScores.sort((a, b) => b.score - a.score).slice(0, 3);
+
+  const topScores = topRepos.map((r) => r.score);
+  const averageScore = topScores.length
+    ? topScores.reduce((a, b) => a + b, 0) / topScores.length
+    : 0;
 
   return Math.round(averageScore);
 }
