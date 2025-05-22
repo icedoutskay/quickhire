@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-//Check README Quality
+
 async function hasGoodReadme (username, repoName){
     try{
         const res = await axios.get('https://api.github.com/repos/${username}/${repoName}/readme');
@@ -42,7 +42,7 @@ function isActivelyMaintained(repo) {
   return lastPush > threshold;
 }
 
-//check folder structure
+
 async function hasGoodStructure(username, repoName) {
   try {
     const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/contents`);
@@ -60,7 +60,7 @@ async function hasGoodStructure(username, repoName) {
   }
 }
 
-//Check for real-world value
+
 function isRealWorldProject(repo) {
   const description = (repo.description || "").toLowerCase();
   const keywords = ["starter", "test", "template", "demo", "tutorial"];
@@ -68,7 +68,7 @@ function isRealWorldProject(repo) {
   return !isBoilerplate && repo.stargazers_count > 0;
 }
 
-//Check for meaningful commit history
+
 async function hasMeaningfulCommits(username, repoName) {
   try {
     const res = await axios.get(`https://api.github.com/repos/${username}/${repoName}/commits`, { headers });
@@ -105,11 +105,11 @@ async function getScore(username, repos) {
     const maintained = isActivelyMaintained(repo);
     const realWorld = isRealWorldProject(repo);
 
-    if (readme) score += 20;
-    if (live) score += 15;
+    if (readme) score += 50;
+    if (live) score += 10;
     if (maintained) score += 15;
     if (realWorld) score += 20;
-    if (structure) score += 15;
+    if (structure) score += 10;
     if (commits) score += 15;
     if (score > 100) score = 100;
    perRepoScores.push(score);
